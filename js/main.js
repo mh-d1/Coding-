@@ -5,15 +5,11 @@ import { initProEditor, loadFile, saveProCode } from './editor.js';
 import { initPro } from './pro.js';
 import { getProject } from './utils.js';
 
-const app = document.getElementById('app');
-const resetProjectBtn = document.getElementById('resetProjectBtn');
-const mobileNav = document.getElementById('mobileNav');
+const resetBtn = document.getElementById('resetProjectBtn');
 const mobileTabs = document.getElementById('mobileTabs');
 
-let editorInstance = null;
-
 function resetProject() {
-    if (!confirm('Reset the current project to its default state?')) return;
+    if (!confirm('Reset to default?')) return;
     const proj = getProject(state.currentProject);
     state.project.html = proj.html;
     state.project.css = proj.css;
@@ -25,63 +21,60 @@ function resetProject() {
 
 function updateMobileView() {
     const isMobile = window.innerWidth <= 640;
-    mobileNav.style.display = isMobile ? 'block' : 'none';
-    if (!isMobile) {
-        document.querySelector('.pro-editor-area').style.display = 'flex';
-        document.querySelector('.pro-preview-area').style.display = 'flex';
-        document.querySelector('.console-panel').style.display = 'flex';
-        return;
-    }
-    const view = state.editorView || 'code';
-    if (view === 'code') {
-        document.querySelector('.pro-editor-area').style.display = 'flex';
-        document.querySelector('.pro-preview-area').style.display = 'none';
-        document.querySelector('.console-panel').style.display = 'none';
+    const nav = document.getElementById('mobileNav');
+    nav.style.display = isMobile ? 'block' : 'none';
+
+    const editor = document.querySelector('.pro-editor-area');
+    const preview = document.querySelector('.pro-preview-area');
+
+    if (isMobile) {
+        const view = state.editorView || 'code';
+        editor.style.display = view === 'code' ? 'flex' : 'none';
+        preview.style.display = view === 'preview' ? 'flex' : 'none';
+        preview.classList.toggle('visible', view === 'preview');
+        mobileTabs.querySelectorAll('button').forEach((btn) => {
+            btn.classList.toggle('active', btn.dataset.view === view);
+        });
     } else {
-        document.querySelector('.pro-editor-area').style.display = 'none';
-        document.querySelector('.pro-preview-area').style.display = 'flex';
-        document.querySelector('.console-panel').style.display = 'flex';
+        editor.style.display = 'flex';
+        preview.style.display = 'flex';
+        preview.classList.add('visible');
     }
-    mobileTabs.querySelectorAll('button').forEach(btn => {
-        btn.classList.toggle('active', btn.dataset.view === view);
-    });
 }
 
 function initResizeHandle() {
     const handle = document.getElementById('resizeHandle');
-    const proEditor = document.querySelector('.pro-editor-area');
-    const proPreview = document.querySelector('.pro-preview-area');
+    const editor = document.querySelector('.pro-editor-area');
+    const preview = document.querySelector('.pro-preview-area');
     let active = false,
-        startX, startWidth;
+        startX, startW;
 
-    function onStart(e) {
-        const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+    const onStart = (e) => {
+        if (window.innerWidth <= 640) return;
+        const cx = e.touches ? e.touches[0].clientX : e.clientX;
         active = true;
-        startX = clientX;
-        startWidth = proEditor.offsetWidth;
+        startX = cx;
+        startW = editor.offsetWidth;
         handle.classList.add('active');
         document.body.style.cursor = 'col-resize';
         document.body.style.userSelect = 'none';
-    }
-
-    function onMove(e) {
+    };
+    const onMove = (e) => {
         if (!active) return;
-        const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+        const cx = e.touches ? e.touches[0].clientX : e.clientX;
         const container = document.querySelector('.app-main');
         const rect = container.getBoundingClientRect();
-        const newWidth = clientX - rect.left;
         const total = rect.width;
-        const pct = Math.max(15, Math.min(85, (newWidth / total) * 100));
-        proEditor.style.flex = `0 0 ${pct}%`;
-        proPreview.style.flex = `0 0 ${100 - pct}%`;
-    }
-
-    function onEnd() {
+        const pct = Math.max(15, Math.min(85, ((cx - rect.left) / total) * 100));
+        editor.style.flex = `0 0 ${pct}%`;
+        preview.style.flex = `0 0 ${100 - pct}%`;
+    };
+    const onEnd = () => {
         active = false;
         handle.classList.remove('active');
         document.body.style.cursor = '';
         document.body.style.userSelect = '';
-    }
+    };
 
     handle.addEventListener('mousedown', onStart);
     document.addEventListener('mousemove', onMove);
@@ -106,31 +99,25 @@ function init() {
     renderPreview();
     setDeviceSize(state.deviceSize || 'desktop');
 
-    // Init editor
-    editorInstance = initProEditor();
-    window.editorInstance = editorInstance;
-
-    // Init pro features
+    window.editorInstance = initProEditor();
     initPro();
 
-    // Theme selector
-    document.querySelectorAll('.theme-dot').forEach(el => {
+    // Theme dots
+    document.querySelectorAll('.theme-dot').forEach((el) => {
         el.addEventListener('click', () => setTheme(el.dataset.theme));
     });
 
-    // Reset project
-    resetProjectBtn.addEventListener('click', resetProject);
+    resetBtn.addEventListener('click', resetProject);
 
     // Device buttons
-    document.querySelectorAll('.device-btn').forEach(btn => {
+    document.querySelectorAll('.device-btn').forEach((btn) => {
         btn.addEventListener('click', () => setDeviceSize(btn.dataset.device));
     });
 
-    // Resize handle
     initResizeHandle();
 
-    // Mobile nav
-    mobileTabs.querySelectorAll('button').forEach(btn => {
+    // Mobile tabs
+    mobileTabs.querySelectorAll('button').forEach((btn) => {
         btn.addEventListener('click', () => {
             state.editorView = btn.dataset.view;
             updateMobileView();
@@ -139,10 +126,8 @@ function init() {
     window.addEventListener('resize', updateMobileView);
     updateMobileView();
 
-    // Save state periodically
     setInterval(saveState, 5000);
-
-    console.log('CodeForge Pro initialized.');
+    console.log('🚀 CodeForge Pro ready.');
 }
 
 document.addEventListener('DOMContentLoaded', init);
